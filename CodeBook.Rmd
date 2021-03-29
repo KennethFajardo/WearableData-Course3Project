@@ -2,7 +2,7 @@
 title: "CodeBook"
 author: "KennethFajardo"
 date: "3/29/2021"
-output: html_document
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
@@ -15,7 +15,7 @@ This project aims to clean the data from an experiment on recognizing human acit
 ## Getting the data
 The raw data is downloaded from [here](https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip). This contains an archive of testing and training data with labels that are separated into other other files. The files are, then, extracted from the archive using WinRAR.
 ```{r}
-#download.file("https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip", "raw-data.zip")
+download.file("https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip", "raw-data.zip")
 ```
 # Loading the needed libraries
 The libraries used for this project are:
@@ -61,7 +61,7 @@ test <- cbind(X_test, y_test)
 Merge the training and testing data.
 ```{r}
 rawData <- rbind(train,test)
-head(rawData)
+str(rawData)
 ```
 
 # Extracting the measurements on the mean and standard deviation for each measurement
@@ -77,7 +77,7 @@ features <- features[grep("mean\\(\\)|std\\(\\)",features$V2)]
 Modify the feature ID column to be of the same format as rawData (i.e. "V{feature_ID}" and drop the feature name column.
 ```{r}
 features$V1 <- features[,paste("V", features$V1, sep="")]
-head(features)
+str(features)
 ```
 
 Extract the columns from the raw data which are in the variable "features".
@@ -156,6 +156,7 @@ Summarize the data.
 setkey(sep, ID, act, force, domain, device, jerk_mag, stat, axes)
 tidyData <- sep[, list(count=.N, average=mean(value)), by=key(sep)]
 head(tidyData, 50)
+str(tidyData)
 ```
 
 
