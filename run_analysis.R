@@ -54,9 +54,10 @@ extracted <- cbind(ID=rawData$ID ,rawData[, features$V1, with=FALSE], act=rawDat
 activity <- fread("activity_labels.txt") 
 names(activity) <- c("ID", "activity")
 
-# ---------- ITEM 4 ---------------- 
 # Replace the activity column in the raw data with its corresponding acitivity name
 extracted <- mutate(extracted, act=activity[act, 2])
+
+# ---------- ITEM 4 ---------------- 
 
 # Melt the data in order to easily separate the variables
 extracted <- as.data.table(extracted)

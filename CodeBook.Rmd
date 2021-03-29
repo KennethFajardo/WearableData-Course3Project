@@ -1,0 +1,161 @@
+---
+title: "CodeBook"
+author: "KennethFajardo"
+date: "3/29/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Getting and Cleaning Data Project
+This project aims to clean the data from an experiment on recognizing human acitivty using smartphones, which has an output of different values across different measurements. This documentation comprehensively explains the processes involved in tidying the data.
+
+## Getting the data
+The raw data is downloaded from [here](https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip). This contains an archive of testing and training data with labels that are separated into other other files. The files are, then, extracted from the archive using WinRAR.
+```{r}
+#download.file("https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip", "raw-data.zip")
+```
+# Loading the needed libraries
+The libraries used for this project are:
+```{r}
+library(tidyr)
+library(dplyr)
+library(data.table)
+library(reshape2)
+```
+# Reading the training and testing data sets
+The utilized function for reading the data is the *fread()* function.
+```{r}
+# Read the training and testing sets
+
+X_train <- fread("./train/X_train.txt") 
+y_train <- fread("./train/y_train.txt") 
+X_test <- fread("./test/X_test.txt")
+y_test <- fread("./test/y_test.txt")
+
+# Read the test subject ID sets
+S_train <- fread("./train/subject_train.txt")
+S_test <- fread("./test/subject_test.txt")
+```
+# Merging the training and the test sets to create one data set
+The column headers for the subject (S) and activity (Y) files are renamed for readability.
+```{r}
+names(S_train) <- "ID"
+names(S_test) <- "ID"
+names(y_train) <- "act"
+names(y_test) <- "act"
+```
+Add the subject and activity columns to the training and testing data.
+```{r}
+# Add the subject ID column to both testing and training data
+X_train <- cbind(S_train, X_train)
+X_test <- cbind(S_test, X_test)
+
+# Add y_train as a new column to X_train
+train <- cbind(X_train, y_train)
+test <- cbind(X_test, y_test)
+
+```
+Merge the training and testing data.
+```{r}
+rawData <- rbind(train,test)
+head(rawData)
+```
+
+# Extracting the measurements on the mean and standard deviation for each measurement
+The measurements are contained within the file "features.txt". Read the file.
+```{r}
+features <- fread("features.txt")
+```
+Extract the rows containing the substring "mean()" and "std()".
+```{r}
+features <- features[grep("mean\\(\\)|std\\(\\)",features$V2)]
+```
+
+Modify the feature ID column to be of the same format as rawData (i.e. "V{feature_ID}" and drop the feature name column.
+```{r}
+features$V1 <- features[,paste("V", features$V1, sep="")]
+head(features)
+```
+
+Extract the columns from the raw data which are in the variable "features".
+```{r}
+extracted <- cbind(ID=rawData$ID ,rawData[, features$V1, with=FALSE], act=rawData$act)
+```
+
+# Use descriptive activity names to name the activities in the data set
+Retrieve the activity labels from "activity_labels.txt", and rename the columns. 
+```{r}
+activity <- fread("activity_labels.txt") 
+names(activity) <- c("ID", "activity")
+head(activity)
+```
+Replace the activity column in the raw data with its corresponding acitivity name.
+```{r}
+extracted <- mutate(extracted, act=activity[act, 2])
+```
+
+# Appropriately label the data set with descriptive variable names
+Melt the data in order to easily separate the variables.
+```{r}
+extracted <- as.data.table(extracted)
+setkey(extracted, ID, act)
+extracted <- melt(setDT(extracted), key(extracted), variable.name="feature.ID")
+```
+Replace the feature ID in the raw data with its corresponding feature name.
+```{r}
+extracted <- merge(x=extracted, y=features[, list(V1, V2)], by.x="feature.ID", by.y = "V1", all.x = TRUE)
+```
+Since this column header was renamed, we plug it back on.
+```{r}
+names(extracted)[length(extracted)] <- 'feature.name' 
+```
+Drop feature.ID column to avoid redundancy.
+```{r}
+extracted$feature.ID <- NULL
+head(extracted)
+```
+
+# Create a second, independent tidy data set with the average of each variable for each activity and each subject
+Create separate data
+```{r}
+sep <- extracted
+```
+The variables can be factored into: 
+1. Domain (T or F) 
+2. Acting Force (Gravity or Body)
+3. Device (Gyroscope or Accelerometer) 
+4. Statistical Summary (Mean or SD)
+5. Axes (X, Y, or Z)
+6. Jerk, Magnitude or NA 
+Feature names are split according to the variables above using the separate function from dplyr. Separating the columns might take a few seconds. The warnings below say that the labels that do not belong to any of the factors are resolved as <NA>.
+```{r}
+# DOMAIN
+sep <- sep %>% separate(col=feature.name, into=c("domain", "temp"), sep="(?<=^.)(?=[A-Z])")
+
+# STAT and AXES
+sep <- sep %>% separate(col=temp, into=c("temp", "stat", "axes"), sep="-")
+
+# FORCE, DEVICE and JERK_MAG
+sep <- sep %>% separate(col=temp, into=c("force", "device", "jerk_mag"), sep="(?<=.)(?=[A-Z])")
+```
+Replace the factors to make them more readable.
+```{r}
+sep[domain == "t", 4] <- "Time"
+sep[domain == "f", 4] <- "Frequency"
+sep[device == "Acc", 6] <- "Accelerator"
+sep[device == "Gyro", 6] <- "Gyroscope"
+sep[jerk_mag == "Mag", 7] <- "Magnitude"
+sep[stat == "mean()", 8] <- "Mean"
+sep[stat == "std()", 8] <- "StanDev"
+```
+Summarize the data.
+```{r}
+setkey(sep, ID, act, force, domain, device, jerk_mag, stat, axes)
+tidyData <- sep[, list(count=.N, average=mean(value)), by=key(sep)]
+head(tidyData, 50)
+```
+
+
