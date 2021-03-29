@@ -14,10 +14,8 @@ This project aims to clean the data from an experiment on recognizing human acit
 
 ## Getting the data
 The raw data is downloaded from [here](https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip). This contains an archive of testing and training data with labels that are separated into other other files. The files are, then, extracted from the archive using WinRAR.
-```{r}
-download.file("https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip", "raw-data.zip")
-```
-# Loading the needed libraries
+
+## Loading the needed libraries
 The libraries used for this project are:
 ```{r}
 library(tidyr)
@@ -25,7 +23,7 @@ library(dplyr)
 library(data.table)
 library(reshape2)
 ```
-# Reading the training and testing data sets
+## Reading the training and testing data sets
 The utilized function for reading the data is the *fread()* function.
 ```{r}
 # Read the training and testing sets
@@ -39,7 +37,7 @@ y_test <- fread("./test/y_test.txt")
 S_train <- fread("./train/subject_train.txt")
 S_test <- fread("./test/subject_test.txt")
 ```
-# Merging the training and the test sets to create one data set
+## Merging the training and the test sets to create one data set
 The column headers for the subject (S) and activity (Y) files are renamed for readability.
 ```{r}
 names(S_train) <- "ID"
@@ -64,7 +62,7 @@ rawData <- rbind(train,test)
 str(rawData)
 ```
 
-# Extracting the measurements on the mean and standard deviation for each measurement
+## Extracting the measurements on the mean and standard deviation for each measurement
 The measurements are contained within the file "features.txt". Read the file.
 ```{r}
 features <- fread("features.txt")
@@ -85,7 +83,7 @@ Extract the columns from the raw data which are in the variable "features".
 extracted <- cbind(ID=rawData$ID ,rawData[, features$V1, with=FALSE], act=rawData$act)
 ```
 
-# Use descriptive activity names to name the activities in the data set
+## Use descriptive activity names to name the activities in the data set
 Retrieve the activity labels from "activity_labels.txt", and rename the columns. 
 ```{r}
 activity <- fread("activity_labels.txt") 
@@ -97,7 +95,7 @@ Replace the activity column in the raw data with its corresponding acitivity nam
 extracted <- mutate(extracted, act=activity[act, 2])
 ```
 
-# Appropriately label the data set with descriptive variable names
+## Appropriately label the data set with descriptive variable names
 Melt the data in order to easily separate the variables.
 ```{r}
 extracted <- as.data.table(extracted)
@@ -118,7 +116,7 @@ extracted$feature.ID <- NULL
 head(extracted)
 ```
 
-# Create a second, independent tidy data set with the average of each variable for each activity and each subject
+## Create a second, independent tidy data set with the average of each variable for each activity and each subject
 Create separate data
 ```{r}
 sep <- extracted
@@ -151,7 +149,7 @@ sep[jerk_mag == "Mag", 7] <- "Magnitude"
 sep[stat == "mean()", 8] <- "Mean"
 sep[stat == "std()", 8] <- "StanDev"
 ```
-Summarize the data.
+Summarize the data, adding in the count and mean for each unique measurement per subject.
 ```{r}
 setkey(sep, ID, act, force, domain, device, jerk_mag, stat, axes)
 tidyData <- sep[, list(count=.N, average=mean(value)), by=key(sep)]

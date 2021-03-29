@@ -104,7 +104,7 @@ sep[jerk_mag == "Mag", 7] <- "Magnitude"
 sep[stat == "mean()", 8] <- "Mean"
 sep[stat == "std()", 8] <- "StanDev"
 
-# Summarize the data
+# Summarize the data, adding in the count and mean for each unique measurement per subject
 setkey(sep, ID, act, force, domain, device, jerk_mag, stat, axes)
 tidyData <- sep[, list(count=.N, average=mean(value)), by=key(sep)]
 
