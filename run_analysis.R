@@ -32,9 +32,6 @@ test <- cbind(X_test, y_test)
 # Merge the training and testing sets
 rawData <- rbind(train,test)
 
-# (OPTIONAL) Convert to datatable to tibble
-#rawData <- tibble::as.tibble(rawData)
-
 # ---------- ITEM 2 ---------------- 
 # NOTE: The measurements for this experiment are listed on 'features.txt'
 
@@ -69,14 +66,12 @@ extracted <- melt(setDT(extracted), key(extracted), variable.name="feature.ID")
 # Replace the feature ID in the raw data with its corresponding feature name
 extracted <- merge(x=extracted, y=features[, list(V1, V2)], by.x="feature.ID", by.y = "V1", 
             all.x = TRUE)
-for (i in extracted$feature.ID) { 
-    # Retrieve the index of the corresponding feature ID of extracted
-    # and then assign the feature name to extracted$feature.ID
-    extracted[feature.ID==i, 3] <- features[match(i, features$V1), V2] 
-}
 
 # Since this column header was renamed, we plug it back on
-names(extracted)[length(extracted)] <- 'activity' 
+names(extracted)[length(extracted)] <- 'feature.name' 
+
+# Drop feature.ID column
+extracted$feature.ID <- NULL
 
 # ---------- ITEM 5 ---------------- 
 # TIDYING THE DATA
@@ -85,16 +80,32 @@ sep <- extracted
 
 # The variables can be factored into: 
 #(1) Domain (T or F); (2) Acting Force (Gravity or Body); (3) Device (Gyroscope or Accelerometer) 
-#(4) Statistical Summary (Mean or SD); #(5) Axes (X, Y, or Z); (6) Recorded Jerk (Yes or No); 
-#(7) Recorded Magnitude (Yes or No)
+#(4) Statistical Summary (Mean or SD); #(5) Axes (X, Y, or Z); (6) Jerk, Magnitude or NA 
+
+# Feature names are split according to the variables above using the separate function from dplyr
+# Separating the columns might take a few seconds.
 
 # DOMAIN
+sep <- sep %>% separate(col=feature.name, into=c("domain", "temp"), sep="(?<=^.)(?=[A-Z])")
 
+# STAT and AXES
+sep <- sep %>% separate(col=temp, into=c("temp", "stat", "axes"), sep="-")
 
+# FORCE, DEVICE and JERK_MAG
+sep <- sep %>% separate(col=temp, into=c("force", "device", "jerk_mag"), sep="(?<=.)(?=[A-Z])")
 
+# Replace the factors to make them more readable
+sep[domain == "t", 4] <- "Time"
+sep[domain == "f", 4] <- "Frequency"
+sep[device == "Acc", 6] <- "Accelerator"
+sep[device == "Gyro", 6] <- "Gyroscope"
+sep[jerk_mag == "Mag", 7] <- "Magnitude"
+sep[stat == "mean()", 8] <- "Mean"
+sep[stat == "std()", 8] <- "StanDev"
 
-
-
+# Summarize the data
+setkey(sep, ID, act, force, domain, device, jerk_mag, stat, axes)
+tidyData <- sep[, list(count=.N, average=mean(value)), by=key(sep)]
 
 
 
